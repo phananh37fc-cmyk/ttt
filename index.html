@@ -5,23 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>App Tiếng Hàn - Phan Văn Quân</title>
     <style>
-	/* --- CSS CHẾ ĐỘ HỌC TỪNG THẺ (FOCUS MODE) --- */
+/* --- CSS CHẾ ĐỘ HỌC TỪNG THẺ (FOCUS MODE) --- */
 #focus-mode-container { 
     display: none; text-align: center; margin: 10px auto 30px auto; max-width: 650px; 
 }
+
+/* 1. KHU VỰC THẺ BÀI (MÀU TỐI DỊU MẮT CHỐNG LÓA) */
 .focus-card {
-    width: 100%; min-height: 280px; background: #81ecec; 
-    border: 3px solid #2d3436; border-radius: 15px;
+    width: 100%; min-height: 280px; 
+    background: #1E293B !important; /* Xám Navy tối rất êm mắt */
+    border: 3px solid #4B5563; /* Viền xám tĩnh tâm */
+    border-radius: 15px;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     cursor: pointer; position: relative;
-    box-shadow: 6px 6px 0px #2d3436; /* Hiệu ứng đổ bóng cứng (Solid shadow) giống ảnh */
+    box-shadow: 6px 6px 0px #020617; 
     transition: transform 0.1s, box-shadow 0.1s;
     margin-bottom: 25px; padding: 20px; box-sizing: border-box;
 }
 .focus-card:active {
     transform: translate(3px, 3px);
-    box-shadow: 3px 3px 0px #2d3436;
+    box-shadow: 3px 3px 0px #020617;
 }
+#focus-front-text { color: #F3F4F6 !important; } /* Trắng sữa chống lóa */
+#focus-back-text { color: #FDE047 !important; }  /* Vàng pastel cho đáp án */
+
+#focus-ex-box { 
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px dashed #6B7280 !important; 
+}
+#focus-ex-kr { color: #93C5FD !important; }
+#focus-ex-vn { color: #9CA3AF !important; }
+
+/* Nút loa nhỏ bên trong thẻ bài */
+.focus-card button {
+    background: #1F2937 !important; 
+    border: 2px solid #4B5563 !important;
+    box-shadow: 2px 2px 0 #020617 !important;
+    color: #F3F4F6 !important;
+}
+
+/* 2. CÁC NÚT ĐIỀU HƯỚNG BÊN DƯỚI (GIỮ NGUYÊN GIAO DIỆN CŨ) */
 .focus-controls { 
     display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; 
 }
@@ -34,13 +57,14 @@
 .btn-wrong { background: #ff7675; color: white; }
 .btn-right { background: #55efc4; color: #2d3436; }
 
-/* Nút bật chế độ nằm ở Menu */
+/* Nút bật chế độ nằm ở Menu (GIỮ NGUYÊN) */
 .btn-start-focus {
     width: 100%; background: linear-gradient(135deg, #0984e3, #74b9ff); color: white;
     border: none; padding: 15px; border-radius: 12px; font-size: 1.15rem; 
     font-weight: bold; cursor: pointer; margin-bottom: 20px;
     box-shadow: 0 4px 15px rgba(9, 132, 227, 0.4); text-transform: uppercase;
 }
+.keyboard-hint { font-size: 0.85rem; color: #7f8c8d; margin-top: 15px; font-style: italic; }
 .keyboard-hint { font-size: 0.85rem; color: #7f8c8d; margin-top: 15px; font-style: italic; }
 	/* --- CSS CHO CHẾ ĐỘ THI NGHE --- */
 .audio-player-card {
@@ -575,7 +599,7 @@ body.dark-mode #ai-chat-header { background: linear-gradient(135deg, #2d2d2d, #4
         <button class="filter-btn" onclick="setLesson('Bài 15', this)">Bài 15</button>
     <div id="custom-topics-container" style="display: none; flex-wrap: wrap; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 2px dashed #f39c12; width: 100%;">
         </div>
-	<button class="filter-btn" onclick="setLesson('Mở rộng', this)" style="color:#1a73e8; font-weight:bold;">Mở rộng 🚀</button>
+	
  </div>
 <div id="quiz-container" style="display: none; background: #fff; padding: 25px; border-radius: 12px; border: 2px solid #009688; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
        
@@ -848,8 +872,8 @@ function flipFocusCard() {
     // Cập nhật số trang
     document.getElementById('focus-progress').innerText = `${focusIndex + 1} / ${focusCards.length}`;
     
-    // Đổi màu nền ngẫu nhiên
-    const colors = ['#81ecec', '#fab1a0', '#ffeaa7', '#55efc4', '#74b9ff'];
+   // Đổi màu nền ngẫu nhiên (Đã chuyển sang các tông màu Tối dịu mắt)
+    const colors = ['#1E293B', '#111827', '#171717', '#1C1917', '#0F172A'];
     document.getElementById('focus-card-element').style.backgroundColor = colors[focusIndex % colors.length];
 
     // Tự động phát âm thanh tiếng Hàn
