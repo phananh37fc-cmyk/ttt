@@ -2386,6 +2386,7 @@ function closeAddWordModal() {
 
 // 2. Lưu từ mới kèm Chủ đề
 // 2. Lưu từ mới kèm Chủ đề
+// 2. Lưu từ mới kèm Chủ đề (ĐÃ ĐỒNG BỘ GOOGLE SHEETS)
 function saveNewWord() {
     let krInp = document.getElementById('new-kr').value.trim();
     let vnInp = document.getElementById('new-vn').value.trim();
@@ -2405,7 +2406,7 @@ function saveNewWord() {
         note: ""
     };
 
-    // Vẫn hiển thị tạm lên màn hình cho người dùng thấy ngay
+    // Hiển thị tạm lên màn hình cho người dùng thấy ngay
     customWords.push(newWord);
     data.unshift(newWord); 
 
@@ -2429,7 +2430,6 @@ function saveNewWord() {
     currentLes = newWord.lesson; 
     filterCards();
 }
-
 // 3. Hàm Xóa từ (Chỉ áp dụng cho từ tự thêm)
 function deleteCustomWord(id, event) {
     if (event) event.stopPropagation(); // Ngăn hành động lật thẻ khi bấm nút xóa
@@ -2988,7 +2988,7 @@ window.onload = function() {
         .then(res => res.json())
         .then(sheetData => {
             if(sheetData && sheetData.length > 0) {
-                // Xóa các từ tự thêm cũ trong mảng data để tránh bị lặp (nếu có)
+                // Xóa các từ tự thêm cũ để tránh bị lặp
                 data = data.filter(w => !w.id.toString().startsWith('custom_'));
                 
                 // Đưa từ trên Cloud vào hệ thống
