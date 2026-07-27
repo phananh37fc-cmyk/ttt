@@ -725,6 +725,7 @@ body.dark-mode #ai-chat-header { background: linear-gradient(135deg, #2d2d2d, #4
 </div>
 
 <script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtl8GdwEMu7wJFeR2fXgPixVRypHR48C5gescgrE6yhTduroaimuqUPtZiRrWT0NtpFA/exec';
 // ==========================================
 // ĐỘNG CƠ CHẾ ĐỘ HỌC TỪNG THẺ (FOCUS MODE)
 // ==========================================
@@ -2398,23 +2399,32 @@ function saveNewWord() {
     let newWord = {
         id: 'custom_' + Date.now(), 
         lesson: lessonInp !== "" ? lessonInp : 'Từ của tôi', 
-        type: 'new', // Mặc định từ mới thêm là loại 'new'
+        type: 'new',
         vn: vnInp,
         kr: krInp,
         note: ""
     };
 
+    // Vẫn hiển thị tạm lên màn hình cho người dùng thấy ngay
     customWords.push(newWord);
-    localStorage.setItem('myCustomWords', JSON.stringify(customWords));
     data.unshift(newWord); 
 
     document.getElementById('new-kr').value = '';
     document.getElementById('new-vn').value = '';
     document.getElementById('new-lesson').value = '';
     closeAddWordModal();
-    alert("✅ Đã thêm từ vựng thành công!");
+    
+    // Gửi ngầm dữ liệu lên Google Sheets
+    fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(newWord)
+    })
+    .then(res => res.text())
+    .then(text => {
+        alert("✅ Đã lưu từ vựng lên hệ thống Đám Mây thành công!");
+    })
+    .catch(err => alert("⚠️ Đã lưu tạm thời, nhưng chưa kết nối được với Đám Mây."));
 
-    // ÉP HỆ THỐNG HIỂN THỊ TỪ VỪA THÊM
     currentCat = 'All'; 
     currentLes = newWord.lesson; 
     filterCards();
@@ -2970,9 +2980,27 @@ function renderCards(cards) {
         }
     }
 
-    window.onload = function() {
-        renderCards(data);
-    };
+window.onload = function() {
+    renderCards(data); // Tải trước các từ có sẵn trong máy
+
+    // Tự động kéo dữ liệu từ Google Sheets về gộp chung
+    fetch(APPS_SCRIPT_URL)
+        .then(res => res.json())
+        .then(sheetData => {
+            if(sheetData && sheetData.length > 0) {
+                // Xóa các từ tự thêm cũ trong mảng data để tránh bị lặp (nếu có)
+                data = data.filter(w => !w.id.toString().startsWith('custom_'));
+                
+                // Đưa từ trên Cloud vào hệ thống
+                customWords = sheetData;
+                data = customWords.concat(data); 
+                
+                filterCards(); // Cập nhật lại giao diện
+                console.log("Đã đồng bộ dữ liệu từ Google Sheets thành công!");
+            }
+        })
+        .catch(err => console.log("Lỗi đồng bộ dữ liệu:", err));
+};
 	// HÀM NHẬN DIỆN GIỌNG NÓI HÀN QUỐC
     function startRecognition(correctText, event) {
         if (event) event.stopPropagation(); // Ngăn việc nhấn mic làm lật thẻ
