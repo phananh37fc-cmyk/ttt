@@ -725,7 +725,7 @@ body.dark-mode #ai-chat-header { background: linear-gradient(135deg, #2d2d2d, #4
 </div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRxcJz1LJfJI15791co29bV_FFTOpx9-0fCWWpI5a3kB6y4Cor2iluGAn5J4_PiTN_Yg/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzca7z_1WO-eAAXGFZQS3g3wvzbImHNrp5F1QYzGftuFWYU0I6epj3zGR2XgfxtEBGp9g/exec';
 // ==========================================
 // ĐỘNG CƠ CHẾ ĐỘ HỌC TỪNG THẺ (FOCUS MODE)
 // ==========================================
@@ -2405,7 +2405,7 @@ function saveNewWord() {
         note: ""
     };
 
-    // Hiện tạm lên web cho bạn học luôn
+    // Hiện tạm lên web cho mày học ngay
     customWords.push(newWord);
     localStorage.setItem('myCustomWords', JSON.stringify(customWords));
     data.unshift(newWord); 
@@ -2415,27 +2415,24 @@ function saveNewWord() {
     document.getElementById('new-lesson').value = '';
     closeAddWordModal();
     
-    // --- PHẦN LÕI: GỬI LÊN GOOGLE SHEETS BẰNG ĐƯỜNG CHÍNH ---
-    // DÁN LINK MỚI BẠN VỪA COPY VÀO DƯỚI ĐÂY:
+    // --- LÕI GỬI DỮ LIỆU LUỒNG GET (BẤT TỬ) ---
+    // DÁN LINK MỚI COPY VÀO ĐÂY:
     const APPS_SCRIPT_URL = 'DÁN_LINK_VỪA_COPY_VÀO_ĐÂY';
 
-    // Tạo link đính kèm trực tiếp dữ liệu (Thách thức mọi tường lửa)
+    // Nối thẳng chữ mày gõ vào đuôi link, thách thằng Google chặn được
     let url = APPS_SCRIPT_URL + "?action=add" +
               "&id=" + encodeURIComponent(newWord.id) +
               "&lesson=" + encodeURIComponent(newWord.lesson) +
-              "&type=" + encodeURIComponent(newWord.type) +
               "&vn=" + encodeURIComponent(newWord.vn) +
-              "&kr=" + encodeURIComponent(newWord.kr) +
-              "&note=" + encodeURIComponent(newWord.note || "");
+              "&kr=" + encodeURIComponent(newWord.kr);
 
     fetch(url)
-    .then(res => res.json())
-    .then(result => {
-        if(result.status === "success") {
+    .then(res => res.text())
+    .then(text => {
+        if (text === "OK") {
             alert("✅ Đã ghi thẳng vào Google Sheets THÀNH CÔNG 100%!");
         } else {
-            // Nếu có lỗi, nó sẽ nhổ thẳng lỗi ra đây cho mình thấy
-            alert("⚠️ Máy chủ Google báo lỗi: " + result.message);
+            alert("⚠️ Máy chủ báo lỗi: " + text);
         }
     })
     .catch(err => {
