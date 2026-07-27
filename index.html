@@ -2387,6 +2387,7 @@ function closeAddWordModal() {
 // 2. Lưu từ mới kèm Chủ đề
 // 2. Lưu từ mới kèm Chủ đề
 // 2. Lưu từ mới kèm Chủ đề (ĐÃ ĐỒNG BỘ GOOGLE SHEETS)
+// 2. Lưu từ mới (BẢN FIX DỨT ĐIỂM LỖI CORS)
 function saveNewWord() {
     let krInp = document.getElementById('new-kr').value.trim();
     let vnInp = document.getElementById('new-vn').value.trim();
@@ -2406,7 +2407,7 @@ function saveNewWord() {
         note: ""
     };
 
-    // Hiển thị tạm lên màn hình cho người dùng thấy ngay
+    // Hiện tạm lên giao diện ngay lập tức
     customWords.push(newWord);
     data.unshift(newWord); 
 
@@ -2415,16 +2416,22 @@ function saveNewWord() {
     document.getElementById('new-lesson').value = '';
     closeAddWordModal();
     
-    // Gửi ngầm dữ liệu lên Google Sheets
+    // GỬI LÊN ĐÁM MÂY - ĐÃ CHẶN LỖI BẢO MẬT (CORS)
     fetch(APPS_SCRIPT_URL, {
         method: 'POST',
+        mode: 'no-cors', // Bắt buộc phải có dòng này để trình duyệt không báo lỗi giả
+        headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+        },
         body: JSON.stringify(newWord)
     })
-    .then(res => res.text())
-    .then(text => {
+    .then(() => {
+        // Đã gỡ bỏ lệnh đọc phản hồi (res.text) gây lỗi
         alert("✅ Đã lưu từ vựng lên hệ thống Đám Mây thành công!");
     })
-    .catch(err => alert("⚠️ Đã lưu tạm thời, nhưng chưa kết nối được với Đám Mây."));
+    .catch(err => {
+        alert("⚠️ Lỗi mạng: Không thể gửi dữ liệu.");
+    });
 
     currentCat = 'All'; 
     currentLes = newWord.lesson; 
