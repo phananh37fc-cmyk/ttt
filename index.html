@@ -725,7 +725,7 @@ body.dark-mode #ai-chat-header { background: linear-gradient(135deg, #2d2d2d, #4
 </div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyoNai_Uc7OLESsca0sPppnFzygew87n7QbGRgpoaIqT0ZLTdctwherhHoOxhvFZbYq3w/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2rZGFrE4wWLeg48NPt4rrDQKE_j0Zc8NvdI96ZyCOY66YOPW_uZBfbKEZTKVZ-6GdKA/exec';
 // ==========================================
 // ĐỘNG CƠ CHẾ ĐỘ HỌC TỪNG THẺ (FOCUS MODE)
 // ==========================================
@@ -2386,8 +2386,6 @@ function closeAddWordModal() {
 
 // 2. Lưu từ mới kèm Chủ đề
 // 2. Lưu từ mới kèm Chủ đề
-// 2. Lưu từ mới kèm Chủ đề (ĐÃ ĐỒNG BỘ GOOGLE SHEETS)
-// 2. Lưu từ mới (BẢN FIX DỨT ĐIỂM LỖI CORS)
 function saveNewWord() {
     let krInp = document.getElementById('new-kr').value.trim();
     let vnInp = document.getElementById('new-vn').value.trim();
@@ -2407,7 +2405,7 @@ function saveNewWord() {
         note: ""
     };
 
-    // Hiện tạm lên giao diện ngay lập tức
+    // Vẫn hiển thị tạm lên màn hình cho người dùng thấy ngay
     customWords.push(newWord);
     data.unshift(newWord); 
 
@@ -2416,27 +2414,22 @@ function saveNewWord() {
     document.getElementById('new-lesson').value = '';
     closeAddWordModal();
     
-    // GỬI LÊN ĐÁM MÂY - ĐÃ CHẶN LỖI BẢO MẬT (CORS)
+    // Gửi ngầm dữ liệu lên Google Sheets
     fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors', // Bắt buộc phải có dòng này để trình duyệt không báo lỗi giả
-        headers: {
-            'Content-Type': 'text/plain;charset=utf-8'
-        },
         body: JSON.stringify(newWord)
     })
-    .then(() => {
-        // Đã gỡ bỏ lệnh đọc phản hồi (res.text) gây lỗi
+    .then(res => res.text())
+    .then(text => {
         alert("✅ Đã lưu từ vựng lên hệ thống Đám Mây thành công!");
     })
-    .catch(err => {
-        alert("⚠️ Lỗi mạng: Không thể gửi dữ liệu.");
-    });
+    .catch(err => alert("⚠️ Đã lưu tạm thời, nhưng chưa kết nối được với Đám Mây."));
 
     currentCat = 'All'; 
     currentLes = newWord.lesson; 
     filterCards();
 }
+
 // 3. Hàm Xóa từ (Chỉ áp dụng cho từ tự thêm)
 function deleteCustomWord(id, event) {
     if (event) event.stopPropagation(); // Ngăn hành động lật thẻ khi bấm nút xóa
@@ -2995,7 +2988,7 @@ window.onload = function() {
         .then(res => res.json())
         .then(sheetData => {
             if(sheetData && sheetData.length > 0) {
-                // Xóa các từ tự thêm cũ để tránh bị lặp
+                // Xóa các từ tự thêm cũ trong mảng data để tránh bị lặp (nếu có)
                 data = data.filter(w => !w.id.toString().startsWith('custom_'));
                 
                 // Đưa từ trên Cloud vào hệ thống
