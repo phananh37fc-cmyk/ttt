@@ -725,7 +725,7 @@ body.dark-mode #ai-chat-header { background: linear-gradient(135deg, #2d2d2d, #4
 </div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxgmjr8M8IIkC2ytM7COcc4dUzfV-ThDl09eciG8t2N9oH4UL1tlHgpqltcAv7Lo7I7DA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRxcJz1LJfJI15791co29bV_FFTOpx9-0fCWWpI5a3kB6y4Cor2iluGAn5J4_PiTN_Yg/exec';
 // ==========================================
 // ĐỘNG CƠ CHẾ ĐỘ HỌC TỪNG THẺ (FOCUS MODE)
 // ==========================================
@@ -1515,7 +1515,7 @@ function toggleDarkMode() {
     { id: 'v44_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Có vết thương", kr: "상처가 나다", ex_kr: "칼에 베여서 손에 상처가 났어요.", ex_vn: "Bị dao cứa nên tay tôi có vết thương.", note: "" },
     { id: 'v45_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Chảy máu", kr: "피가 나다", ex_kr: "코에서 갑자기 피가 나요.", ex_vn: "Đột nhiên mũi tôi bị chảy máu.", note: "" },
     { id: 'v46_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Nặng (nghiêm trọng)", kr: "심하다", ex_kr: "감기가 심해서 학교에 못 갔어요.", ex_vn: "Vì cảm cúm nặng quá nên tôi không thể đến trường.", note: "" },
-    { id: 'v47_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Bị thương, bị trầy xước 1", kr: "다치다", ex_kr: "어제 농구를 하다가 다쳤어요.", ex_vn: "Hôm qua đang chơi bóng rổ thì tôi bị thương.", note: "" },
+    { id: 'v47_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Bị thương, bị trầy xước", kr: "다치다", ex_kr: "어제 농구를 하다가 다쳤어요.", ex_vn: "Hôm qua đang chơi bóng rổ thì tôi bị thương.", note: "" },
     { id: 'v48_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Đau răng", kr: "치통", ex_kr: "밤에 치통이 너무 심해서 잠을 못 잤어요.", ex_vn: "Ban đêm đau răng quá dữ dội nên tôi không ngủ được.", note: "" },
     { id: 'v49_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Đau bụng, đau dạ dày", kr: "복통", ex_kr: "갑자기 복통이 심해져서 병원에 갔어요.", ex_vn: "Đột nhiên đau bụng dữ dội nên tôi đã đến bệnh viện.", note: "" },
     { id: 'v50_sc2_b4', lesson: 'Bài 4', type: 'new', vn: "Thuốc hạ sốt", kr: "해열제", ex_kr: "열이 너무 올라서 해열제를 먹였어요.", ex_vn: "Sốt lên cao quá nên tôi đã cho uống thuốc hạ sốt.", note: "" },
@@ -2405,8 +2405,9 @@ function saveNewWord() {
         note: ""
     };
 
-    // Vẫn hiển thị tạm lên màn hình cho người dùng thấy ngay
+    // Hiện tạm lên web cho bạn học luôn
     customWords.push(newWord);
+    localStorage.setItem('myCustomWords', JSON.stringify(customWords));
     data.unshift(newWord); 
 
     document.getElementById('new-kr').value = '';
@@ -2414,30 +2415,33 @@ function saveNewWord() {
     document.getElementById('new-lesson').value = '';
     closeAddWordModal();
     
-    // --- BẮT ĐẦU ĐẨY LÊN GOOGLE SHEETS ---
-    // DÁN LINK BẠN VỪA COPY VÀO DƯỚI ĐÂY:
-    const APPS_SCRIPT_URL = 'DÁN_LINK_CỦA_BẠN_VÀO_ĐÂY';
+    // --- PHẦN LÕI: GỬI LÊN GOOGLE SHEETS BẰNG ĐƯỜNG CHÍNH ---
+    // DÁN LINK MỚI BẠN VỪA COPY VÀO DƯỚI ĐÂY:
+    const APPS_SCRIPT_URL = 'DÁN_LINK_VỪA_COPY_VÀO_ĐÂY';
 
-    // Đóng gói dữ liệu thành Form Data để Sheet dễ đọc nhất
-    let formData = new URLSearchParams();
-    formData.append('id', newWord.id);
-    formData.append('lesson', newWord.lesson);
-    formData.append('type', newWord.type);
-    formData.append('vn', newWord.vn);
-    formData.append('kr', newWord.kr);
-    formData.append('note', newWord.note || "");
+    // Tạo link đính kèm trực tiếp dữ liệu (Thách thức mọi tường lửa)
+    let url = APPS_SCRIPT_URL + "?action=add" +
+              "&id=" + encodeURIComponent(newWord.id) +
+              "&lesson=" + encodeURIComponent(newWord.lesson) +
+              "&type=" + encodeURIComponent(newWord.type) +
+              "&vn=" + encodeURIComponent(newWord.vn) +
+              "&kr=" + encodeURIComponent(newWord.kr) +
+              "&note=" + encodeURIComponent(newWord.note || "");
 
-    fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors', // Bỏ qua chặn CORS bảo mật của trình duyệt
-        body: formData
+    fetch(url)
+    .then(res => res.json())
+    .then(result => {
+        if(result.status === "success") {
+            alert("✅ Đã ghi thẳng vào Google Sheets THÀNH CÔNG 100%!");
+        } else {
+            // Nếu có lỗi, nó sẽ nhổ thẳng lỗi ra đây cho mình thấy
+            alert("⚠️ Máy chủ Google báo lỗi: " + result.message);
+        }
     })
-    .then(() => {
-        alert("✅ Đã lưu từ vựng từ App lên bảng tính Google Sheets thành công!");
-    })
-    .catch(err => alert("⚠️ Lỗi mạng: " + err));
+    .catch(err => {
+        alert("⚠️ Lỗi mạng: " + err);
+    });
 
-    // Cập nhật lại giao diện
     currentCat = 'All'; 
     currentLes = newWord.lesson; 
     filterCards();
