@@ -2415,16 +2415,30 @@ function saveNewWord() {
     closeAddWordModal();
     
     // Gửi ngầm dữ liệu lên Google Sheets
+// Dán URL MỚI TINH bạn vừa copy ở Bước 2 vào đây
+    const APPS_SCRIPT_URL = 'DÁN_LINK_VỪA_COPY_VÀO_ĐÂY';
+
+    // Chuyển đổi dữ liệu sang định dạng Form Data (chống lỗi CORS tuyệt đối)
+    let formData = new URLSearchParams();
+    formData.append('id', newWord.id);
+    formData.append('lesson', newWord.lesson);
+    formData.append('type', newWord.type);
+    formData.append('vn', newWord.vn);
+    formData.append('kr', newWord.kr);
+    formData.append('note', newWord.note || "");
+
+    // Gửi ngầm dữ liệu lên Google Sheets
     fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        body: JSON.stringify(newWord)
+        mode: 'no-cors', // Lần này dùng no-cors chung với Form Data là hợp lệ 100%
+        body: formData
     })
-    .then(res => res.text())
-    .then(text => {
-        alert("✅ Đã lưu từ vựng lên hệ thống Đám Mây thành công!");
+    .then(() => {
+        alert("✅ Đã lưu từ vựng lên bảng tính Google Sheets thành công!");
     })
-    .catch(err => alert("⚠️ Đã lưu tạm thời, nhưng chưa kết nối được với Đám Mây."));
-
+    .catch(err => {
+        alert("⚠️ Vẫn có lỗi mạng: " + err);
+    });
     currentCat = 'All'; 
     currentLes = newWord.lesson; 
     filterCards();
