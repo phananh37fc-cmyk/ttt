@@ -2497,14 +2497,30 @@ function renderCustomTopics() {
 }
 function filterCards() {
     var searchInput = document.getElementById('searchInput');
-    var keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    
-    currentFilteredCards = data.filter(i => {
-        // 1. Phải khớp với Quyển (Book) đang chọn
-        let passBook = (i.book === currentBook);
-        if (!passBook) return false; // Sai quyển là loại luôn, không xét tiếp
+    var keyword = searchInput ? searchInput.value.trim() : '';
 
-        // 2. Lọc theo Danh mục (Từ mới, Ngữ pháp, Từ khó...)
+    // Hàm hỗ trợ tìm kiếm TIẾNG VIỆT KHÔNG DẤU & CHỮ THƯỜNG
+    const normalizeText = (str) => {
+        if (!str) return "";
+        return str.normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "") 
+                  .replace(/đ/g, "d").replace(/Đ/g, "D") 
+                  .toLowerCase(); 
+    };
+    
+    let normalizedKeyword = normalizeText(keyword);
+
+    currentFilteredCards = data.filter(i => {
+        let passBook = (i.book === currentBook);
+        if (!passBook) return false;
+
+        // Nếu đang gõ tìm kiếm -> Bỏ qua bài học, tìm trên toàn bộ sách
+        if (normalizedKeyword !== '') {
+            let textVn = normalizeText(i.vn);
+            let textKr = normalizeText(i.kr);
+            return textVn.includes(normalizedKeyword) || textKr.includes(normalizedKeyword);
+        }
+
         let passCat = false;
         if (currentCat === 'All') passCat = true;
         else if (currentCat === 'listening') passCat = (i.type === 'new');
@@ -2514,7 +2530,6 @@ function filterCards() {
         else if (currentCat === 'Luyện tập' && i.type === 'practice') passCat = true;
         else if (i.type === currentCat) passCat = true;
 
-        // 3. Lọc theo Bài (Bài 1, Bài 2...)
         let passLes = false;
         if (currentLes === 'All' || currentLes === 'all') passLes = true;
         else if (currentLes === 'Từ của tôi') {
@@ -2523,22 +2538,181 @@ function filterCards() {
             passLes = true;
         }
 
-        // 4. Lọc theo từ khóa tìm kiếm
-        let passKey = true;
-        if (keyword !== '') {
-            passKey = ((i.vn && i.vn.toLowerCase().includes(keyword)) || (i.kr && i.kr.toLowerCase().includes(keyword)));
-        }
-        return passCat && passLes && passKey;
+        return passCat && passLes;
     });
 
-    currentPage = 1;
-    displayPage();
+    // Đóng menu sidebar nếu đang mở
     var menu = document.getElementById('sidebar');
     var overlay = document.getElementById('overlay');
     if (menu) menu.classList.remove('active');
     if (overlay) overlay.style.display = 'none';
+
+    // TÍNH NĂNG XỊN: NẾU TỪ KHÔNG CÓ TRONG SÁCH -> GỌI AI GEMMA
+    if (currentFilteredCards.length === 0 && keyword !== '') {
+        renderNotFoundCard(keyword);
+    } else {
+        currentPage = 1;
+        displayPage();
+    }
 }
 
+// ========================================================
+// HÀM MỚI 1: CHẠY AI GEMMA OFFLINE TRỰC TIẾP TRÊN TRÌNH DUYỆT
+// ========================================================
+// ========================================================
+// HÀM HIỂN THỊ THẺ DỊCH TỰ ĐỘNG (BẢN NHẸ - SIÊU NHANH)
+// ========================================================
+function renderNotFoundCard(keyword) {
+    const container = document.getElementById('card-container');
+    let paginationDiv = document.getElementById('pagination-controls');
+    if(paginationDiv) paginationDiv.style.display = 'none';
+
+    // Tự động nhận diện ngôn ngữ để đảo chiều dịch
+    let isKorean = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(keyword);
+    let langpair = isKorean ? "ko|vi" : "vi|ko";
+
+    // 1. Hiển thị giao diện "Đang dịch..."
+    container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align:center; padding: 30px 20px; background: #fff; border-radius: 15px; border: 2px dashed #3498db; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <div style="font-size: 3rem; margin-bottom: 10px;">⏳</div>
+            <h3 style="color:#2c3e50; font-size: 1.4rem; margin-bottom: 5px;">Đang dịch tự động từ: <span style="color:#e74c3c;">"${keyword}"</span></h3>
+            <p style="color:#7f8c8d; font-size: 0.95rem;">Vui lòng chờ trong giây lát...</p>
+        </div>`;
+
+    // 2. Gọi API MyMemory (Nhanh, nhẹ, không bị lỗi CORS chặn)
+    let url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(keyword)}&langpair=${langpair}`;
+
+    fetch(url)
+    .then(response => response.json())
+    .then(res => {
+        let translatedText = res.responseData.translatedText;
+        
+        if (!translatedText || translatedText.toLowerCase() === keyword.toLowerCase()) {
+            translatedText = "(Không tìm thấy nghĩa chính xác)";
+        }
+
+        let krWord = isKorean ? keyword : translatedText;
+        let vnWord = isKorean ? translatedText : keyword;
+
+        let safeKr = krWord.replace(/'/g, "\\'");
+        let safeVn = vnWord.replace(/'/g, "\\'");
+
+        // 3. Hiển thị thẳng kết quả dịch lên màn hình
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align:center; padding: 30px 20px; background: #fff; border-radius: 15px; border: 2px solid #2ecc71; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+                <div style="font-size: 1rem; color: #7f8c8d; font-weight: bold; margin-bottom: 10px;">💡 KẾT QUẢ DỊCH TỰ ĐỘNG:</div>
+                <div style="font-size: 2.5rem; color: #e74c3c; font-weight: 900; margin-bottom: 5px; letter-spacing: 1px;">${krWord}</div>
+                <div style="font-size: 1.4rem; color: #27ae60; font-weight: 600; margin-bottom: 25px;">${vnWord}</div>
+                
+                <div style="display: flex; flex-direction: column; gap: 12px; max-width: 350px; margin: 0 auto;">
+                    <button onclick="quickOpenAddModal('${safeKr}', '${safeVn}')" style="background: #f39c12; color: white; border: none; padding: 14px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 6px rgba(243, 156, 18, 0.3); transition: 0.2s;">
+                        ➕ Mở Form lưu vào App
+                    </button>
+                    
+                    <button onclick="window.open('https://dict.naver.com/vikoko/dict.html#/search?query=${encodeURIComponent(krWord)}', '_blank')" style="background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.2s;">
+                        📗 Mở Naver để xem ví dụ
+                    </button>
+                </div>
+            </div>`;
+    })
+    .catch(err => {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align:center; padding: 30px 20px; background: #fff; border-radius: 15px; border: 2px dashed #e74c3c; margin-top: 20px;">
+                <h3 style="color:#e74c3c;">⚠️ Lỗi kết nối mạng!</h3>
+                <button onclick="window.open('https://dict.naver.com/vikoko/dict.html#/search?query=${encodeURIComponent(keyword)}', '_blank')" style="background: #00c73c; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px;">📗 Tra từ thủ công bằng Naver</button>
+            </div>`;
+    });
+}
+
+// ========================================================
+// HÀM MỚI 2: MỞ FORM THÊM TỪ
+// ========================================================
+function quickOpenAddModal(keyword, isKorean) {
+    document.getElementById('add-word-modal').style.display = 'flex';
+    document.getElementById('new-kr').value = '';
+    document.getElementById('new-vn').value = '';
+    document.getElementById('new-lesson').value = 'Từ vựng Gemma Offline';
+
+    if (isKorean) {
+        document.getElementById('new-kr').value = keyword;
+        document.getElementById('new-vn').focus(); 
+    } else {
+        document.getElementById('new-vn').value = keyword;
+        document.getElementById('new-kr').focus(); 
+    }
+    document.getElementById('searchInput').value = '';
+}
+
+// ========================================================
+// HÀM MỚI 1: HIỂN THỊ GIAO DIỆN TRA CỨU TỪ ĐIỂN TỰ ĐỘNG
+// ========================================================
+function renderOnlineSearchCard(keyword) {
+    const container = document.getElementById('card-container');
+    let paginationDiv = document.getElementById('pagination-controls');
+    if(paginationDiv) paginationDiv.style.display = 'none';
+
+    // 1. Hiển thị giao diện chờ
+    container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align:center; padding: 40px 20px; background: #fff; border-radius: 15px; border: 2px dashed #f39c12; margin-top: 20px;">
+            <h3 style="color:#d35400; font-size: 1.5rem;">🔍 Từ "${keyword}" không có trong sách!</h3>
+            <p style="color:#7f8c8d; font-weight: bold;">Đang tự động nhờ Google thông dịch...</p>
+            <div id="online-result" style="margin-top:25px;">
+                <span style="font-size: 2rem;">⏳</span>
+            </div>
+        </div>`;
+
+    // 2. Gọi API ẩn của Google Translate (miễn phí, không cần cấu hình key)
+    let url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q=${encodeURIComponent(keyword)}`;
+    
+    fetch(url)
+    .then(response => response.json())
+    .then(res => {
+        let translatedText = res[0][0][0];
+        
+        // Tự động nhận diện ngôn ngữ: Gõ Tiếng Hàn -> Ra Tiếng Việt và ngược lại
+        let isKorean = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(keyword);
+        let krWord = isKorean ? keyword : translatedText;
+        let vnWord = isKorean ? translatedText : keyword;
+
+        document.getElementById('online-result').innerHTML = `
+            <div style="background: #f0f8ff; padding: 25px; border-radius: 15px; display: inline-block; min-width: 280px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                <div style="font-size: 2.2rem; color: #e74c3c; font-weight: 900; letter-spacing: 1px;">${krWord}</div>
+                <div style="font-size: 1.2rem; color: #2c3e50; margin-top: 10px; font-weight: 600;">Nghĩa là: <span style="color:#27ae60; font-size: 1.4rem;">${vnWord}</span></div>
+                
+                <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 12px; align-items: center;">
+                    <button onclick="quickAddWord('${krWord}', '${vnWord}')" style="background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; font-size: 1rem; width: 100%; box-shadow: 0 4px 6px rgba(39, 174, 96, 0.3); transition: 0.2s;">
+                        ➕ Lưu ngay vào "Từ của tôi"
+                    </button>
+                    <a href="https://dict.naver.com/vikoko/dict.html#/search?query=${krWord}" target="_blank" style="text-decoration: none; color: #3498db; font-weight: bold; font-size: 0.95rem; margin-top: 5px;">
+                        📖 Xem ví dụ & giải thích sâu (Naver) ➡️
+                    </a>
+                </div>
+            </div>
+        `;
+    })
+    .catch(err => {
+        document.getElementById('online-result').innerHTML = `
+            <span style="color:#e74c3c; font-weight:bold;">Lỗi kết nối mạng. Bạn hãy thử tra từ điển <a href="https://dict.naver.com/vikoko/dict.html#/search?query=${keyword}" target="_blank" style="color:#3498db;">Naver tại đây nhé!</a></span>
+        `;
+    });
+}
+
+// ========================================================
+// HÀM MỚI 2: LƯU NHANH TỪ VỰNG VÀO DATABASE
+// ========================================================
+function quickAddWord(kr, vn) {
+    // Tự động điền dữ liệu vào form thêm từ đang ẩn
+    document.getElementById('new-kr').value = kr;
+    document.getElementById('new-vn').value = vn;
+    document.getElementById('new-lesson').value = 'Từ tra ngoài sách';
+    
+    // Gọi hàm lưu lên Firebase (đã có sẵn trong code của bạn)
+    saveNewWord(); 
+    
+    // Xóa ô tìm kiếm để reset lại giao diện
+    document.getElementById('searchInput').value = '';
+    filterCards();
+}
 function displayPage() {
     let totalPages = Math.ceil(currentFilteredCards.length / itemsPerPage);
     if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
@@ -2780,14 +2954,58 @@ function flipNormalCard(element, event) {
     }
 }
 
+// Biến toàn cục để khóa chống nhảy dòng kép
+// Biến toàn cục để khóa chống nhảy dòng kép
+let isJumping = false; 
+
 function checkInlineAnswer(inputElement, event, correctAnswer) {
-    let userVal = inputElement.value.trim().toLowerCase().replace(/[\s.,?!~()]/g, '');
-    let correctVal = correctAnswer.trim().toLowerCase().replace(/[\s.,?!~()]/g, '');
+    let isEnter = event && (event.key === 'Enter' || event.keyCode === 13 || event.code === 'Enter');
+    let isFakeEvent = event && event.type === 'change';
+
+    // CHỐNG NHẢY KÉP (Tránh lỗi ấn 1 lần qua 2 dòng)
+    if (isEnter && !isFakeEvent && isJumping) return;
+
+    // ==========================================
+    // BỘ LỌC NHẬN DIỆN THÔNG MINH
+    // ==========================================
+    const normalizeText = (str) => {
+        if (!str) return "";
+        return str.normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "") // Bỏ dấu tiếng Việt (mối -> moi, mỗi -> moi)
+                  .replace(/đ/g, "d").replace(/Đ/g, "D") // Đổi đ/Đ thành d
+                  .toLowerCase() // Chuyển thành chữ thường
+                  .replace(/[^a-z0-9ㄱ-ㅎㅏ-ㅣ가-힣]/g, ''); // Xóa toàn bộ khoảng trắng, dấu câu, kí tự đặc biệt
+    };
+
+    let userVal = normalizeText(inputElement.value);
+    let isMatch = false;
+
+    // 1. Tách đáp án gốc nếu có dấu phẩy (,) hoặc xuyệt (/)
+    // VD: "thư điện tử, email" -> người dùng gõ "email" vẫn đúng
+    let possibleAnswers = correctAnswer.split(/[,/|]/).map(ans => normalizeText(ans));
+    
+    if (possibleAnswers.includes(userVal)) {
+        isMatch = true;
+    }
+
+    // 2. Châm trước trường hợp có ngoặc đơn chú thích
+    // VD: "Tạm biệt (đi về)" -> người dùng chỉ gõ "tạm biệt" vẫn cho đúng
+    if (!isMatch) {
+        let answerWithoutBrackets = normalizeText(correctAnswer.replace(/\(.*\)/g, ''));
+        if (userVal !== "" && userVal === answerWithoutBrackets) {
+            isMatch = true;
+        }
+    }
+    // ==========================================
+
     let krText = inputElement.parentElement.querySelector('.kr-result-container');
-    
     inputElement.classList.remove('quiz-correct', 'quiz-wrong');
-    
-    if (event && (event.key === 'Enter' || event.keyCode === 13 || event.code === 'Enter')) {
+
+    // XỬ LÝ NHẢY DÒNG (Đã fix lỗi nhảy lố)
+    if (isEnter && !isFakeEvent) {
+        isJumping = true; 
+        setTimeout(() => { isJumping = false; }, 300); 
+
         let allInputs = Array.from(document.querySelectorAll('.quiz-input'));
         let currentIndex = allInputs.indexOf(inputElement);
         if (currentIndex !== -1 && currentIndex < allInputs.length - 1) {
@@ -2799,25 +3017,26 @@ function checkInlineAnswer(inputElement, event, correctAnswer) {
         }
     }
 
+    // KIỂM TRA ĐÁP ÁN
     if (userVal === '') {
         if(krText) krText.style.display = 'none';
         return;
     }
     
-    if (userVal === correctVal) {
+    if (isMatch) { // Dùng biến isMatch thông minh thay vì so sánh cứng nhắc
         inputElement.classList.add('quiz-correct');
         if(krText) krText.style.display = 'block';
-        speakKorean(correctAnswer, null); 
         
         if (!inputElement.hasAttribute('data-passed')) {
+            speakKorean(correctAnswer, null); 
             inputElement.setAttribute('data-passed', 'true');
             exp += 10;
             updateGameUI();
         }
-    } else if (event && (event.key === 'Enter' || event.keyCode === 13 || event.code === 'Enter')) {
+    } else if (isEnter && !isFakeEvent) { 
         inputElement.classList.add('quiz-wrong');
         if (krText) {
-            krText.style.display = isAutoShowAnswer ? 'block' : 'none';
+            krText.style.display = (typeof isAutoShowAnswer !== 'undefined' && isAutoShowAnswer) ? 'block' : 'none';
         }
 
         if (!inputElement.hasAttribute('data-passed') && !inputElement.hasAttribute('data-wrong-once')) {
@@ -2828,12 +3047,11 @@ function checkInlineAnswer(inputElement, event, correctAnswer) {
                 document.body.style.animation = "shake 0.5s";
                 setTimeout(() => document.body.style.animation = "", 500);
                 resetGame();
-                filterCards(); 
+                if (typeof filterCards === 'function') filterCards(); 
             }
         }
     }
 }
-
 function checkMCAnswer(btn, isCorrect, correctText) {
     if (btn.hasAttribute('data-clicked')) return; 
     let parent = btn.parentElement;
@@ -2870,26 +3088,6 @@ function checkMCAnswer(btn, isCorrect, correctText) {
             filterCards(); 
         }
     }
-}
-
-function updateGameUI() {
-    let hpString = "";
-    for(let i = 0; i < currentHp; i++) hpString += "❤️";
-    for(let i = currentHp; i < maxHp; i++) hpString += "🖤"; 
-    document.getElementById('hp-display').innerText = hpString;
-    document.getElementById('exp-display').innerText = exp;
-    document.getElementById('level-display').innerText = level;
-    document.getElementById('level-display-bottom').innerText = level;
-    
-    let expNeeded = level * 50;
-    document.getElementById('exp-need').innerText = expNeeded;
-}
-
-function resetGame() {
-    currentHp = maxHp;
-    exp = 10;
-    level = 1;
-    updateGameUI();
 }
 
 function toggleShowAnswer() {
@@ -3252,11 +3450,28 @@ function shuffleCards() {
         container.appendChild(cards[j]); 
     }
 }
+// Bắt sự kiện keydown để ngăn bàn phím ảo (điện thoại) tự nhảy dòng
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.classList.contains('quiz-input')) {
+        if (e.key === 'Enter' || e.keyCode === 13 || e.code === 'Enter') {
+            e.preventDefault(); 
+        }
+    }
+});
+// Bắt sự kiện keydown để ngăn bàn phím đt/máy tính tự động nhảy
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.classList.contains('quiz-input')) {
+        if (e.key === 'Enter' || e.keyCode === 13 || e.code === 'Enter') {
+            e.preventDefault(); // Lệnh cực kỳ quan trọng để chặn trình duyệt tự ý chuyển dòng
+        }
+    }
+});
 
+// Sự kiện change chỉ gọi kiểm tra đáp án, TUYỆT ĐỐI không gửi kèm phím Enter ảo nữa
 document.addEventListener('change', function(e) {
-    if (e.target.tagName === 'INPUT' && e.target.type === 'text') {
+    if (e.target.tagName === 'INPUT' && e.target.classList.contains('quiz-input')) {
         if (typeof e.target.onkeyup === 'function') {
-            e.target.onkeyup({ key: 'Enter', keyCode: 13, type: 'change' });
+            e.target.onkeyup({ type: 'change' }); 
         }
     }
 });
