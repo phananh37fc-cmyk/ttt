@@ -2612,15 +2612,6 @@ function renderNotFoundCard(keyword) {
                     
                     <button onclick="window.open('https://dict.naver.com/vikoko/dict.html#/search?query=${encodeURIComponent(krWord)}', '_blank')" style="background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.2s;">
                         📗 Mở Naver để xem ví dụ
-						<!-- Nút gọi AI -->
-        <button onclick="phanTichBangAI()" style="width: 100%; padding: 12px; margin-top: 10px; background: linear-gradient(135deg, #a29bfe, #6c5ce7); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);">
-            ✨ Yêu cầu Gia sư AI phân tích
-        </button>
-
-        <!-- Khung hiển thị kết quả của AI -->
-        <div id="ai-analysis-result" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-left: 5px solid #6c5ce7; border-radius: 8px; text-align: left; font-size: 1rem; line-height: 1.6; color: #2d3436; border: 1px solid #dfe6e9;">
-        </div>
-			
                     </button>
                 </div>
             </div>`;
@@ -3490,43 +3481,69 @@ document.addEventListener('change', function(e) {
 window.onload = function() {
     if(typeof filterCards === 'function') filterCards(); 
 };
-// ==========================================
-// TÍNH NĂNG GIA SƯ AI (GEMINI API)
-// ==========================================
-async function phanTichBangAI() {
-    const apiKey = "AQ.Ab8RN6LZdiVOZ3e0XE3ZhxRQFcQiFJjq6RLuO4f2BF3wehbX5w"; 
-    
-    // Kiểm tra xem đã dán Key chưa
-    if (apiKey === "DÁN_API_KEY_THẬT_CỦA_BẠN_VÀO_ĐÂY" || apiKey === "") {
-        alert("Bạn chưa nhập API Key!");
-        return;
-    }
 
-    let resultBox = document.getElementById('ai-analysis-result');
-    resultBox.style.display = 'block';
-    resultBox.innerHTML = '<span style="color:#6c5ce7; font-weight:bold;"><i>⏳ Đang kết nối thử với Gemini...</i></span>';
+</script>
+<!-- DÁN ĐOẠN NÀY NGAY TRƯỚC THẺ </body> -->
+<script>
+// ========================================================
+// BẢN VÁ: TỰ ĐỘNG ĐỌC TIẾNG HÀN KHI LẬT THẺ & LUYỆN GÕ
+// ========================================================
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    try {
-        let response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: "Dịch và phân tích ngữ pháp từ: 사랑해" }] }] })
-        });
-        
-        let data = await response.json();
-        
-        if(data.error) {
-            resultBox.innerHTML = `<b style="color:red">Lỗi từ máy chủ: ${data.error.message}</b>`;
-        } else {
-            resultBox.innerHTML = `<b style="color:green">Thành công! AI đã hoạt động. Kết quả:</b><br><br>` + data.candidates[0].content.parts[0].text.replace(/```html/g, '').replace(/```/g, '');
-        }
-    } catch (error) {
-        resultBox.innerHTML = `<b style="color:red">Lỗi mạng hoặc lỗi code: ${error.message}</b>`;
+// 1. HÀM CHUYÊN PHÁT ÂM TIẾNG HÀN
+function docTiengHan(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Xóa luồng âm thanh cũ nếu đang đọc dở
+        let msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ko-KR'; // Ép buộc luôn dùng giọng Hàn Quốc
+        msg.rate = 0.9;     // Tốc độ đọc vừa phải
+        window.speechSynthesis.speak(msg);
     }
 }
-</script>
 
+// 2. TỰ ĐỘNG ĐỌC KHI CLICK LẬT THẺ (CẢ LƯỚI & FOCUS)
+document.addEventListener('click', function(e) {
+    // A. Bắt sự kiện lật thẻ dạng Lưới (Grid)
+    let card = e.target.closest('.flashcard');
+    // Không đọc nếu đang bấm vào ô gõ chữ hoặc nút loa
+    if (card && !e.target.classList.contains('quiz-input') && !e.target.closest('.speaker-btn')) {
+        let krElem = card.querySelector('.kr-text');
+        if (krElem) {
+            // Delay 50ms để đợi thẻ lật xong rồi mới phát âm
+            setTimeout(() => docTiengHan(krElem.innerText), 50);
+        }
+    }
+    
+    // B. Bắt sự kiện lật thẻ khổng lồ (Focus Mode)
+    let focusCard = e.target.closest('.focus-card');
+    if (focusCard) {
+        setTimeout(() => {
+            let backText = document.getElementById('focus-back-text').innerText;
+            let frontText = document.getElementById('focus-front-text').innerText;
+            
+            // Tìm đúng từ tiếng Hàn để đọc bằng Regex (Dù mặt trước là tiếng Việt hay Hàn, nó sẽ tự lôi tiếng Hàn ra đọc)
+            let krText = (/[가-힣]/.test(backText)) ? backText : frontText;
+            if (krText && /[가-힣]/.test(krText)) {
+                docTiengHan(krText);
+            }
+        }, 50);
+    }
+});
+
+// 3. TỰ ĐỘNG ĐỌC TIẾNG HÀN KHI GÕ XONG (ẤN ENTER)
+document.addEventListener('keypress', function(e) {
+    // Nếu đang đứng ở ô Luyện Gõ và người dùng ấn Enter
+    if (e.target.classList.contains('quiz-input') && e.key === 'Enter') {
+        let card = e.target.closest('.flashcard');
+        if (card) {
+            let krElem = card.querySelector('.kr-text');
+            if (krElem) {
+                // Dù bạn đang gõ tiếng Việt hay tiếng Hàn vào ô, máy đều phát âm từ vựng tiếng Hàn đó
+                docTiengHan(krElem.innerText); 
+            }
+        }
+    }
+});
+</script>
 </body>
+
 </html>
